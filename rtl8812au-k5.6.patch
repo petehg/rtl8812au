@@ -1,0 +1,229 @@
+--- rtw_proc.c	2019-11-15 10:55:04.000000000 +0000
++++ /rtl8812au-5.6.4.2-master/os_dep/linux/rtw_proc.c	2020-02-18 17:23:43.594662287 +0000
+@@ -62,11 +62,17 @@
+ }
+ 
+ inline struct proc_dir_entry *rtw_proc_create_entry(const char *name, struct proc_dir_entry *parent,
+-	const struct file_operations *fops, void * data)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
++	const struct proc_ops *pops, void * data)
++#else
++    const struct file_operations *fops, void * data)
++#endif
+ {
+ 	struct proc_dir_entry *entry;
+-
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26))
++    
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
++    entry = proc_create_data(name,  S_IFREG | S_IRUGO | S_IWUGO, parent, pops, data);
++#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26))
+ 	entry = proc_create_data(name,  S_IFREG | S_IRUGO | S_IWUGO, parent, fops, data);
+ #else
+ 	entry = create_proc_entry(name, S_IFREG | S_IRUGO | S_IWUGO, parent);
+@@ -237,7 +243,23 @@
+ 
+ 	return -EROFS;
+ }
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
++static const struct proc_ops rtw_drv_proc_seq_ops = {
++	.proc_open = rtw_drv_proc_open,
++	.proc_read = seq_read,
++	.proc_lseek = seq_lseek,
++	.proc_release = seq_release,
++	.proc_write = rtw_drv_proc_write,
++};
+ 
++static const struct proc_ops rtw_drv_proc_sseq_ops = {
++	.proc_open = rtw_drv_proc_open,
++	.proc_read = seq_read,
++	.proc_lseek = seq_lseek,
++	.proc_release = single_release,
++	.proc_write = rtw_drv_proc_write,
++};
++#else
+ static const struct file_operations rtw_drv_proc_seq_fops = {
+ 	.owner = THIS_MODULE,
+ 	.open = rtw_drv_proc_open,
+@@ -255,7 +277,7 @@
+ 	.release = single_release,
+ 	.write = rtw_drv_proc_write,
+ };
+-
++#endif
+ int rtw_drv_proc_init(void)
+ {
+ 	int ret = _FAIL;
+@@ -275,10 +297,17 @@
+ 	}
+ 
+ 	for (i = 0; i < drv_proc_hdls_num; i++) {
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+ 		if (drv_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SEQ)
++			entry = rtw_proc_create_entry(drv_proc_hdls[i].name, rtw_proc, &rtw_drv_proc_seq_ops, (void *)i);
++		else if (drv_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SSEQ)
++			entry = rtw_proc_create_entry(drv_proc_hdls[i].name, rtw_proc, &rtw_drv_proc_sseq_ops, (void *)i);
++#else
++        if (drv_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SEQ)
+ 			entry = rtw_proc_create_entry(drv_proc_hdls[i].name, rtw_proc, &rtw_drv_proc_seq_fops, (void *)i);
+ 		else if (drv_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SSEQ)
+-			entry = rtw_proc_create_entry(drv_proc_hdls[i].name, rtw_proc, &rtw_drv_proc_sseq_fops, (void *)i);
++			entry = rtw_proc_create_entry(drv_proc_hdls[i].name, rtw_proc, &rtw_drv_proc_sseq_fops, (void *)i);       
++#endif
+ 		else
+ 			entry = NULL;
+ 
+@@ -4157,7 +4186,23 @@
+ 
+ 	return -EROFS;
+ }
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
++static const struct proc_ops rtw_adapter_proc_seq_ops = {
++	.proc_open = rtw_adapter_proc_open,
++	.proc_read = seq_read,
++	.proc_lseek = seq_lseek,
++	.proc_release = seq_release,
++	.proc_write = rtw_adapter_proc_write,
++};
+ 
++static const struct proc_ops rtw_adapter_proc_sseq_ops = {
++	.proc_open = rtw_adapter_proc_open,
++	.proc_read = seq_read,
++	.proc_lseek = seq_lseek,
++	.proc_release = single_release,
++	.proc_write = rtw_adapter_proc_write,
++};
++#else
+ static const struct file_operations rtw_adapter_proc_seq_fops = {
+ 	.owner = THIS_MODULE,
+ 	.open = rtw_adapter_proc_open,
+@@ -4175,6 +4220,7 @@
+ 	.release = single_release,
+ 	.write = rtw_adapter_proc_write,
+ };
++#endif
+ 
+ int proc_get_odm_adaptivity(struct seq_file *m, void *v)
+ {
+@@ -4326,7 +4372,23 @@
+ 
+ 	return -EROFS;
+ }
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
++static const struct proc_ops rtw_odm_proc_seq_ops = {
++	.proc_open = rtw_odm_proc_open,
++	.proc_read = seq_read,
++	.proc_lseek = seq_lseek,
++	.proc_release = seq_release,
++	.proc_write = rtw_odm_proc_write,
++};
+ 
++static const struct proc_ops rtw_odm_proc_sseq_ops = {
++	.proc_open = rtw_odm_proc_open,
++	.proc_read = seq_read,
++	.proc_lseek = seq_lseek,
++	.proc_release = single_release,
++	.proc_write = rtw_odm_proc_write,
++};
++#else
+ static const struct file_operations rtw_odm_proc_seq_fops = {
+ 	.owner = THIS_MODULE,
+ 	.open = rtw_odm_proc_open,
+@@ -4344,7 +4406,7 @@
+ 	.release = single_release,
+ 	.write = rtw_odm_proc_write,
+ };
+-
++#endif
+ struct proc_dir_entry *rtw_odm_proc_init(struct net_device *dev)
+ {
+ 	struct proc_dir_entry *dir_odm = NULL;
+@@ -4371,10 +4433,17 @@
+ 	adapter->dir_odm = dir_odm;
+ 
+ 	for (i = 0; i < odm_proc_hdls_num; i++) {
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)       
+ 		if (odm_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SEQ)
++			entry = rtw_proc_create_entry(odm_proc_hdls[i].name, dir_odm, &rtw_odm_proc_seq_ops, (void *)i);
++		else if (odm_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SSEQ)
++			entry = rtw_proc_create_entry(odm_proc_hdls[i].name, dir_odm, &rtw_odm_proc_sseq_ops, (void *)i);
++#else
++        if (odm_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SEQ)
+ 			entry = rtw_proc_create_entry(odm_proc_hdls[i].name, dir_odm, &rtw_odm_proc_seq_fops, (void *)i);
+ 		else if (odm_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SSEQ)
+-			entry = rtw_proc_create_entry(odm_proc_hdls[i].name, dir_odm, &rtw_odm_proc_sseq_fops, (void *)i);
++			entry = rtw_proc_create_entry(odm_proc_hdls[i].name, dir_odm, &rtw_odm_proc_sseq_fops, (void *)i);  
++#endif
+ 		else
+ 			entry = NULL;
+ 
+@@ -4467,7 +4536,23 @@
+ 
+ 	return -EROFS;
+ }
++#if LINUX_VERSION_CODE = KERNEL_VERSION(5,6,0)
++static const struct proc_ops rtw_mcc_proc_seq_ops = {
++	.proc_open = rtw_mcc_proc_open,
++	.proc_read = seq_read,
++	.proc_lseek = seq_lseek,
++	.proc_release = seq_release,
++	.proc_write = rtw_mcc_proc_write,
++};
+ 
++static const struct proc_ops rtw_mcc_proc_sseq_ops = {
++	.proc_open = rtw_mcc_proc_open,
++	.proc_read = seq_read,
++	.proc_lseek = seq_lseek,
++	.proc_release = single_release,
++	.proc_write = rtw_mcc_proc_write,
++};
++#else
+ static const struct file_operations rtw_mcc_proc_seq_fops = {
+ 	.owner = THIS_MODULE,
+ 	.open = rtw_mcc_proc_open,
+@@ -4485,6 +4570,7 @@
+ 	.release = single_release,
+ 	.write = rtw_mcc_proc_write,
+ };
++#endif
+ 
+ struct proc_dir_entry *rtw_mcc_proc_init(struct net_device *dev)
+ {
+@@ -4512,11 +4598,18 @@
+ 	adapter->dir_mcc = dir_mcc;
+ 
+ 	for (i = 0; i < mcc_proc_hdls_num; i++) {
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+ 		if (mcc_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SEQ)
++			entry = rtw_proc_create_entry(mcc_proc_hdls[i].name, dir_mcc, &rtw_mcc_proc_seq_ops, (void *)i);
++		else if (mcc_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SSEQ)
++			entry = rtw_proc_create_entry(mcc_proc_hdls[i].name, dir_mcc, &rtw_mcc_proc_sseq_ops, (void *)i);
++#else
++        if (mcc_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SEQ)
+ 			entry = rtw_proc_create_entry(mcc_proc_hdls[i].name, dir_mcc, &rtw_mcc_proc_seq_fops, (void *)i);
+ 		else if (mcc_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SSEQ)
+ 			entry = rtw_proc_create_entry(mcc_proc_hdls[i].name, dir_mcc, &rtw_mcc_proc_sseq_fops, (void *)i);
+-		else
++#endif
++        else
+ 			entry = NULL;
+ 
+ 		if (!entry) {
+@@ -4577,10 +4670,17 @@
+ 	adapter->dir_dev = dir_dev;
+ 
+ 	for (i = 0; i < adapter_proc_hdls_num; i++) {
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+ 		if (adapter_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SEQ)
++			entry = rtw_proc_create_entry(adapter_proc_hdls[i].name, dir_dev, &rtw_adapter_proc_seq_ops, (void *)i);
++		else if (adapter_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SSEQ)
++			entry = rtw_proc_create_entry(adapter_proc_hdls[i].name, dir_dev, &rtw_adapter_proc_sseq_ops, (void *)i);
++#else
++        if (adapter_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SEQ)
+ 			entry = rtw_proc_create_entry(adapter_proc_hdls[i].name, dir_dev, &rtw_adapter_proc_seq_fops, (void *)i);
+ 		else if (adapter_proc_hdls[i].type == RTW_PROC_HDL_TYPE_SSEQ)
+ 			entry = rtw_proc_create_entry(adapter_proc_hdls[i].name, dir_dev, &rtw_adapter_proc_sseq_fops, (void *)i);
++#endif
+ 		else
+ 			entry = NULL;
+ 
